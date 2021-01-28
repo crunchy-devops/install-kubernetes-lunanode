@@ -95,6 +95,7 @@
     - name: install calico in kubernetes
       become_user: "{{ ansible_ssh_user }}"
       command: kubectl apply -f https://docs.projectcalico.org/v3.9/manifests/calico.yaml
+      ignore_errors: yes
     - name: get pem
       shell:  kubeadm token list | awk ' NR==2 {print $1}'
       register: master_pem
@@ -121,17 +122,14 @@
       ignore_errors: yes
 
 - hosts: master
+  become: true
   tasks:
     - name: copy Dashboard Readme
       copy: src=DASHBOARD.md dest=/home/{{ ansible_ssh_user }}
     - name: copy dashboard yaml file to master
       copy: src=recommended.yaml dest=/home/{{ ansible_ssh_user }}
-    - name: apply the dashboard script
-      shell: kubectl apply -f /home/{{ ansible_ssh_user }}/recommended.yaml
     - name: copy admin-user to the master
       copy: src=dashboard-adminuser.yaml dest=/home/{{ ansible_ssh_user }}
-    - name: apply admin-user script
-      shell: kubectl apply -f /home/{{ ansible_ssh_user }}/dashboard-adminuser.yaml
     - name: install golang
       shell: snap install go --classic
 
