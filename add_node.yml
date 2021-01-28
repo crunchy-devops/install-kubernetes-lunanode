@@ -1,0 +1,106 @@
+---
+- hosts: node
+  become: true
+  tasks:
+    - name: apt get update cache
+      apt: update_cache=yes
+    - name: apt upgrade
+      apt: name='*' state=latest
+    - name: apt docker io
+      apt: name=docker.io state=latest update_cache=yes
+    - name: stop docker io
+      systemd: name=docker state=stopped
+    - name: install daemon.json
+      template:
+        src: daemon.j2
+        dest: /etc/docker/daemon.json
+    - name: reload the docker daemon
+      systemd:
+        name:  docker
+        state: started
+    - name: enable service docker
+      systemd:
+        name: docker
+        enabled: yes
+        masked: no
+    - name: set kubernetes deb repo in apt source list
+      lineinfile: create=yes
+                  dest=/etc/apt/sources.list.d/kubernetes.list
+                  line="deb http://apt.kubernetes.io/ kubernetes-xenial main"
+    - name: get depo key
+      shell:  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: "{{ item}}"
+        fstype: swap
+        state: absent
+      with_items:
+        - swap
+        - none
+    - name: Disable Swap
+      shell: |
+        swapoff -a
+      when: ansible_swaptotal_mb > 0
+    - name: Install kubadm
+      apt:
+        name: kubeadm
+        state: present
+        update_cache: yes
+    - name: install kubelet
+      apt:
+        name: kubelet
+        state: present
+        update_cache: yes
+    - name: install kubectl
+      apt:
+        name: kubectl
+        state: present
+        update_cache: yes
+    - name: create .kube directory
+      file:
+        path: /home/{{ansible_ssh_user}}/.kube
+        state: directory
+        owner: "{{ansible_ssh_user}}"
+        group: "{{ansible_ssh_user}}"
+
+- hosts: master
+  become: true
+  tasks:
+    - name: Fetch the file from master to the ansible controller
+      run_once: yes
+      fetch: src=/etc/kubernetes/admin.conf dest=/tmp/admin.conf flat=yes
+    - name: get pem
+      shell:  kubeadm token create
+      register: master_pem
+    - name: get sha:256 key
+      shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+      register: sha_key
+    - name: get  public ip address for lunanode cloud provider
+      shell: hostname -I | awk '{print $1}'
+      register: ip_address
+    - name: Add K8s token and hash to a dummy host for usage latter on
+      add_host:
+        name: "dummy"
+        token: "{{master_pem.stdout}}"
+        hash: "{{sha_key.stdout}}"
+        ip_address: "{{ip_address.stdout}}"
+
+- hosts: node
+  become: true
+  tasks:
+    - name: Copy config file from ansible controller to all nodes
+      copy: src=/tmp/admin.conf dest=/home/{{ansible_ssh_user}}/.kube/config
+    - name: All nodes join the kubernetes master
+      shell: kubeadm join --token {{ hostvars['dummy']['token']}} {{ hostvars['dummy']['ip_address']}}:6443 --discovery-token-ca-cert-hash sha256:{{ hostvars['dummy']['hash']}}
+    - name: added block of alias and completion for kubectl
+      blockinfile:
+        path:  /home/{{ ansible_ssh_user }}/.bashrc
+        block: |
+          alias k='kubectl'
+          source <( kubectl completion bash | sed s/kubectl/k/g)
+    - name: change user's password on all hosts
+      become: true
+      user:
+        name: "{{ansible_ssh_user}}"
+        password: "{{ 'lawn-vex' | password_hash('sha512') }}"
+        groups: docker, sudo
