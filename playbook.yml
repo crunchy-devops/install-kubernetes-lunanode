@@ -78,8 +78,11 @@
     #  get_url:
     #    url: https://tinyurl.com/y8lvqc9g
     #    dest: /home/{{ansible_ssh_user}}
+    - name: get  public ip address for local cloud provider
+      shell: hostname -I | awk '{print $1}' # print $2 for a local cluster on virtualbox
+      register: ip_address
     - name: run kubeadm init
-      shell: kubeadm init --pod-network-cidr 192.168.0.0/16 | tee kubeadm-init.out
+      shell: kubeadm init --pod-network-cidr 192.168.0.0/16 --apiserver-advertise-address={{ ip_address.stdout }} | tee kubeadm-init.out
     - name: copy master admin.conf to ansible controller
       get_url:
         url: file:///etc/kubernetes/admin.conf
@@ -92,19 +95,21 @@
     #- name: install rbac in kubernetes
     #  become_user: ubuntu
     #  command: kubectl apply -f /home/ubuntu/rbac-kdd.yaml
+    - name: install calico-tigera in kubernetes
+      become_user: "{{ ansible_ssh_user }}"
+      command: kubectl apply -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
     - name: install calico in kubernetes
       become_user: "{{ ansible_ssh_user }}"
-      command: kubectl apply -f https://docs.projectcalico.org/v3.9/manifests/calico.yaml
-      ignore_errors: yes
+      command: kubectl apply -f https://docs.projectcalico.org/manifests/custom-resources.yaml
     - name: get pem
       shell:  kubeadm token list | awk ' NR==2 {print $1}'
       register: master_pem
     - name: get sha:256 key
       shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
       register: sha_key
-    - name: get  public ip address for lunanode cloud provider
-      shell: hostname -I | awk '{print $1}'
-      register: ip_address
+    #- name: get  public ip address for lunanode cloud provider
+    #  shell: hostname -I | awk '{print $2}'
+    #  register: ip_address
     - name: Add K8s token and hash to a dummy host for usage latter on
       add_host:
         name: "dummy"
@@ -130,12 +135,14 @@
       copy: src=recommended.yaml dest=/home/{{ ansible_ssh_user }}
     - name: copy admin-user to the master
       copy: src=dashboard-adminuser.yaml dest=/home/{{ ansible_ssh_user }}
-    - name: install golang
-      shell: snap install go --classic
+
 
 
 - hosts: all,!dummy
   tasks:
+    - name: install golang
+      become: true
+      shell: snap install go --classic
     - name: change user's password on all hosts
       become: true
       user:
