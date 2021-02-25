@@ -1,5 +1,6 @@
 [master]
-51.255.211.141  ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+172.81.182.33  ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
 [node]
-51.68.5.133  ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
-51.68.28.134 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+170.75.163.101 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+172.81.182.43 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+170.75.164.28 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'

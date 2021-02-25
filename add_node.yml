@@ -76,7 +76,7 @@
       shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
       register: sha_key
     - name: get  public ip address for lunanode cloud provider
-      shell: hostname -I | awk '{print $1}'
+      shell: hostname -I | awk '{print $1}' # BEWARE you should change that, it should be set as your network topology is.
       register: ip_address
     - name: Add K8s token and hash to a dummy host for usage latter on
       add_host:

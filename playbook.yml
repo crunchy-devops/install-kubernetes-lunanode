@@ -2,10 +2,10 @@
 - hosts: all
   become: true
   tasks:
-    - name: install apt-transport-https
-      apt: name=apt-transport-https state=latest update_cache=yes
     - name: apt get update cache
       apt: update_cache=yes
+    - name: install apt-transport-https
+      apt: name=apt-transport-https state=latest update_cache=yes
     - name: apt upgrade
       apt: name='*' state=latest
     - name: apt docker io
@@ -95,12 +95,17 @@
     #- name: install rbac in kubernetes
     #  become_user: ubuntu
     #  command: kubectl apply -f /home/ubuntu/rbac-kdd.yaml
-    - name: install calico-tigera in kubernetes
+    #- name: install calico-tigera in kubernetes
+    #  become_user: "{{ ansible_ssh_user }}"
+    #  command: kubectl apply -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+    #- name: install calico in kubernetes
+    #  become_user: "{{ ansible_ssh_user }}"
+    #  command: kubectl apply -f https://docs.projectcalico.org/manifests/custom-resources.yaml
+    - name: copy weave file
+      copy: src=weave.yaml dest=/home/{{ ansible_ssh_user }}
+    - name: install weave
       become_user: "{{ ansible_ssh_user }}"
-      command: kubectl apply -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
-    - name: install calico in kubernetes
-      become_user: "{{ ansible_ssh_user }}"
-      command: kubectl apply -f https://docs.projectcalico.org/manifests/custom-resources.yaml
+      command: kubectl apply -f weave.yaml
     - name: get pem
       shell:  kubeadm token list | awk ' NR==2 {print $1}'
       register: master_pem
@@ -137,7 +142,6 @@
       copy: src=dashboard-adminuser.yaml dest=/home/{{ ansible_ssh_user }}
 
 
-
 - hosts: all,!dummy
   tasks:
     - name: install golang
@@ -154,4 +158,5 @@
         path:  /home/{{ ansible_ssh_user }}/.bashrc
         block: |
           alias k='kubectl'
+          alias ll='ls -alrt'
           source <( kubectl completion bash | sed s/kubectl/k/g)
