@@ -17,3 +17,15 @@ pip3 install wheel
 pip3 install ansible
 ansible --version
 ```
+## Create an inventory file 
+```ini
+[master]
+164.132.212.121 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+[node]
+51.255.211.165 ansible_ssh_user=ubuntu  ansible_ssh_pass=xxx ansible_ssh_extra_args='-o StrictHostKeyChecking=no'
+```
+
+## Install Kubernetes
+```shell
+ansible-playbook -i inventory playbook.yml
+```
